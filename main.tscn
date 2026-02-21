@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://buyh8fkpd1pxn"]
+
+[ext_resource type="Script" uid="uid://dffuh8qrijjv1" path="res://OceanGpuPipelineRd.cs" id="1_ig7tw"]
+
+[node name="Main" type="Node" unique_id=53954720]
+script = ExtResource("1_ig7tw")

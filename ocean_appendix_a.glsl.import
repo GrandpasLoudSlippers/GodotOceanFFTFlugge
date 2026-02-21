@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cjawd0dal7l2q"
+path="res://.godot/imported/ocean_appendix_a.glsl-28cdc4b0668a56de9595dfe22d21e5d4.res"
+
+[deps]
+
+source_file="res://ocean_appendix_a.glsl"
+dest_files=["res://.godot/imported/ocean_appendix_a.glsl-28cdc4b0668a56de9595dfe22d21e5d4.res"]
+
+[params]
+

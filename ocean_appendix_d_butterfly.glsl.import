@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://b7py614gcwsfq"
+path="res://.godot/imported/ocean_appendix_d_butterfly.glsl-41782e9c3294aaab7217448f539ce9cc.res"
+
+[deps]
+
+source_file="res://ocean_appendix_d_butterfly.glsl"
+dest_files=["res://.godot/imported/ocean_appendix_d_butterfly.glsl-41782e9c3294aaab7217448f539ce9cc.res"]
+
+[params]
+

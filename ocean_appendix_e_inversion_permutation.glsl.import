@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://0dg2tyjn44sq"
+path="res://.godot/imported/ocean_appendix_e_inversion_permutation.glsl-c670f2b12c6ee5cf5a6d5f2e02d917b8.res"
+
+[deps]
+
+source_file="res://ocean_appendix_e_inversion_permutation.glsl"
+dest_files=["res://.godot/imported/ocean_appendix_e_inversion_permutation.glsl-c670f2b12c6ee5cf5a6d5f2e02d917b8.res"]
+
+[params]
+
