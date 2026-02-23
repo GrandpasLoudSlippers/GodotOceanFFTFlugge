@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://buyh8fkpd1pxn"]
 
 [ext_resource type="Script" uid="uid://bgmrfluj7m6fh" path="res://OceanGpuAttemptRd.cs" id="1_ig7tw"]
+[ext_resource type="Shader" uid="uid://cwrw8uhkv6hx3" path="res://ocean_surface_patch.gdshader" id="2_0xm2m"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7dm0k"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -15,6 +16,32 @@ sky = SubResource("Sky_ig7tw")
 tonemap_mode = 2
 glow_enabled = true
 
+[sub_resource type="Texture2DRD" id="Texture2DRD_0xm2m"]
+
+[sub_resource type="Texture2DRD" id="Texture2DRD_h2yge"]
+
+[sub_resource type="Texture2DRD" id="Texture2DRD_1bvp3"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lquwl"]
+render_priority = 0
+shader = ExtResource("2_0xm2m")
+shader_parameter/dy_tex = SubResource("Texture2DRD_h2yge")
+shader_parameter/dx_tex = SubResource("Texture2DRD_0xm2m")
+shader_parameter/dz_tex = SubResource("Texture2DRD_1bvp3")
+shader_parameter/domain_length = 1000.0
+shader_parameter/spectrum_size = 256.0
+shader_parameter/height_scale = 8.0
+shader_parameter/horizontal_scale = 4.0
+shader_parameter/lambda_scale = 1.0
+shader_parameter/deep_color = Color(0.01, 0.08, 0.16, 1)
+shader_parameter/shallow_color = Color(0.04, 0.25, 0.35, 1)
+shader_parameter/foam_strength = 0.12
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_7mycd"]
+size = Vector2(1000, 1000)
+subdivide_width = 255
+subdivide_depth = 255
+
 [node name="Main" type="Node" unique_id=53954720]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1176228523]
@@ -22,11 +49,12 @@ environment = SubResource("Environment_0xm2m")
 
 [node name="Node3D" type="Node3D" parent="." unique_id=40352588]
 script = ExtResource("1_ig7tw")
-N = 128
-L = 500
-A = 10.0
-WindSpeed = 5.0
-OceanMeshPath = NodePath("")
+
+[node name="OceanTiles" type="Node3D" parent="Node3D" unique_id=548972027]
+
+[node name="OceanPatch_0" type="MeshInstance3D" parent="Node3D/OceanTiles" unique_id=55150708]
+material_override = SubResource("ShaderMaterial_lquwl")
+mesh = SubResource("PlaneMesh_7mycd")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1185052920]
 transform = Transform3D(0.966401, 0.25702852, 0.002349548, -0.19083364, 0.7113315, 0.67645407, 0.17219666, -0.6541742, 0.73648113, 0, 2, 0)

@@ -21,6 +21,10 @@ public partial class OceanGpuAttemptRd : Node3D
 
     [Export] public float PlaneSize = 1000.0f;
     [Export] public int MeshSubdivisions = 256;
+    [Export] public int TilesX = 1;
+    [Export] public int TilesZ = 1;
+    [Export] public bool CenterTiles = true;
+
     [Export] public NodePath OceanMeshPath;
     [Export] public string OceanSurfaceShaderPath = "res://ocean_surface_patch.gdshader";
 
@@ -43,6 +47,8 @@ public partial class OceanGpuAttemptRd : Node3D
     private int _log2N;
 
     private MeshInstance3D _oceanMesh;
+    private Node3D _tileRoot;
+    private readonly List<MeshInstance3D> _tileMeshes = new();
     private ShaderMaterial _oceanSurfaceMat;
 
     private Texture2Drd _texDy;
@@ -96,6 +102,9 @@ public partial class OceanGpuAttemptRd : Node3D
     private bool _meshSnapshotValid;
     private float _prevPlaneSize;
     private int _prevMeshSubdivisions;
+    private int _prevTilesX;
+    private int _prevTilesZ;
+    private bool _prevCenterTiles;
     private string _prevSurfaceShaderPath = "";
 
     private bool _pipelineSnapshotValid;
@@ -230,6 +239,9 @@ public partial class OceanGpuAttemptRd : Node3D
             !_meshSnapshotValid ||
             !Mathf.IsEqualApprox(_prevPlaneSize, PlaneSize) ||
             _prevMeshSubdivisions != MeshSubdivisions ||
+            _prevTilesX != TilesX ||
+            _prevTilesZ != TilesZ ||
+            _prevCenterTiles != CenterTiles ||
             _prevSurfaceShaderPath != (OceanSurfaceShaderPath ?? "");
 
         if (!changed)
@@ -237,6 +249,9 @@ public partial class OceanGpuAttemptRd : Node3D
 
         _prevPlaneSize = PlaneSize;
         _prevMeshSubdivisions = MeshSubdivisions;
+        _prevTilesX = TilesX;
+        _prevTilesZ = TilesZ;
+        _prevCenterTiles = CenterTiles;
         _prevSurfaceShaderPath = OceanSurfaceShaderPath ?? "";
         _meshSnapshotValid = true;
 
@@ -288,6 +303,9 @@ public partial class OceanGpuAttemptRd : Node3D
 
         _prevPlaneSize = PlaneSize;
         _prevMeshSubdivisions = MeshSubdivisions;
+        _prevTilesX = TilesX;
+        _prevTilesZ = TilesZ;
+        _prevCenterTiles = CenterTiles;
         _prevSurfaceShaderPath = OceanSurfaceShaderPath ?? "";
         _meshSnapshotValid = true;
 
@@ -297,56 +315,164 @@ public partial class OceanGpuAttemptRd : Node3D
 
     private void EnsureOceanMesh()
     {
-        MeshInstance3D target = null;
+        int tilesX = Mathf.Max(1, TilesX);
+        int tilesZ = Mathf.Max(1, TilesZ);
+        float safePlaneSize = Mathf.Max(0.01f, PlaneSize);
+        int subdiv = Mathf.Max(2, MeshSubdivisions);
 
-        if (OceanMeshPath != null && !OceanMeshPath.IsEmpty)
-            target = GetNodeOrNull<MeshInstance3D>(OceanMeshPath);
+        Shader shader = GD.Load<Shader>(OceanSurfaceShaderPath);
 
-        if (target != null)
-            _oceanMesh = target;
-
-        if (_oceanMesh == null || !IsInstanceValid(_oceanMesh))
-            _oceanMesh = GetNodeOrNull<MeshInstance3D>("OceanPatch");
-
-        if (_oceanMesh == null)
+        if (tilesX == 1 && tilesZ == 1 && OceanMeshPath != null && !OceanMeshPath.IsEmpty)
         {
-            _oceanMesh = new MeshInstance3D { Name = "OceanPatch" };
-            AddChild(_oceanMesh);
+            MeshInstance3D external = GetNodeOrNull<MeshInstance3D>(OceanMeshPath);
+            if (external != null)
+            {
+                _oceanMesh = external;
+                ClearGeneratedTileGrid();
 
-            if (Engine.IsEditorHint() && GetTree()?.EditedSceneRoot != null)
-                _oceanMesh.Owner = GetTree().EditedSceneRoot;
+                _oceanMesh.Mesh = new PlaneMesh
+                {
+                    Size = new Vector2(safePlaneSize, safePlaneSize),
+                    SubdivideWidth = subdiv - 1,
+                    SubdivideDepth = subdiv - 1
+                };
+
+                ApplySurfaceMaterial(shader);
+                return;
+            }
         }
 
-        int subdiv = Mathf.Max(2, MeshSubdivisions);
-        _oceanMesh.Mesh = new PlaneMesh
+        EnsureTileRoot();
+
+        int needed = tilesX * tilesZ;
+        while (_tileMeshes.Count < needed)
         {
-            Size = new Vector2(Mathf.Max(0.01f, PlaneSize), Mathf.Max(0.01f, PlaneSize)),
+            var m = new MeshInstance3D { Name = $"OceanPatch_{_tileMeshes.Count}" };
+            _tileRoot.AddChild(m);
+
+            if (Engine.IsEditorHint() && GetTree()?.EditedSceneRoot != null)
+                m.Owner = GetTree().EditedSceneRoot;
+
+            _tileMeshes.Add(m);
+        }
+
+        while (_tileMeshes.Count > needed)
+        {
+            int last = _tileMeshes.Count - 1;
+            var m = _tileMeshes[last];
+            _tileMeshes.RemoveAt(last);
+            if (IsInstanceValid(m))
+                m.QueueFree();
+        }
+
+        var plane = new PlaneMesh
+        {
+            Size = new Vector2(safePlaneSize, safePlaneSize),
             SubdivideWidth = subdiv - 1,
             SubdivideDepth = subdiv - 1
         };
 
-        Shader shader = GD.Load<Shader>(OceanSurfaceShaderPath);
+        ApplySurfaceMaterial(shader);
+
+        float startX = CenterTiles ? -0.5f * (tilesX - 1) * safePlaneSize : 0.0f;
+        float startZ = CenterTiles ? -0.5f * (tilesZ - 1) * safePlaneSize : 0.0f;
+
+        int idx = 0;
+        for (int z = 0; z < tilesZ; z++)
+        {
+            for (int x = 0; x < tilesX; x++)
+            {
+                var m = _tileMeshes[idx++];
+                m.Mesh = plane;
+                m.Visible = true;
+                m.Position = new Vector3(startX + x * safePlaneSize, 0.0f, startZ + z * safePlaneSize);
+                m.MaterialOverride = _oceanSurfaceMat ?? CreateFallbackMaterial();
+            }
+        }
+
+        _oceanMesh = _tileMeshes.Count > 0 ? _tileMeshes[0] : null;
+
+        ApplyDisplayTextures();
+    }
+
+    private void EnsureTileRoot()
+    {
+        if (_tileRoot != null && IsInstanceValid(_tileRoot))
+            return;
+
+        _tileRoot = GetNodeOrNull<Node3D>("OceanTiles");
+        if (_tileRoot == null)
+        {
+            _tileRoot = new Node3D { Name = "OceanTiles" };
+            AddChild(_tileRoot);
+
+            if (Engine.IsEditorHint() && GetTree()?.EditedSceneRoot != null)
+                _tileRoot.Owner = GetTree().EditedSceneRoot;
+        }
+    }
+
+    private void ClearGeneratedTileGrid()
+    {
+        for (int i = _tileMeshes.Count - 1; i >= 0; i--)
+        {
+            if (IsInstanceValid(_tileMeshes[i]))
+                _tileMeshes[i].QueueFree();
+        }
+
+        _tileMeshes.Clear();
+
+        if (_tileRoot != null && IsInstanceValid(_tileRoot))
+        {
+            _tileRoot.QueueFree();
+            _tileRoot = null;
+        }
+    }
+
+    private void ApplySurfaceMaterial(Shader shader)
+    {
         if (shader == null)
         {
             _oceanSurfaceMat = null;
-            _oceanMesh.MaterialOverride = new StandardMaterial3D
+            Material fallback = CreateFallbackMaterial();
+
+            if (_tileMeshes.Count > 0)
             {
-                AlbedoColor = new Color(0.08f, 0.22f, 0.35f),
-                Roughness = 0.08f
-            };
+                for (int i = 0; i < _tileMeshes.Count; i++)
+                    _tileMeshes[i].MaterialOverride = fallback;
+            }
+            else if (_oceanMesh != null)
+            {
+                _oceanMesh.MaterialOverride = fallback;
+            }
+
             return;
         }
 
         _oceanSurfaceMat = new ShaderMaterial { Shader = shader };
-        _oceanMesh.MaterialOverride = _oceanSurfaceMat;
-
         _oceanSurfaceMat.SetShaderParameter("domain_length", (float)L);
         _oceanSurfaceMat.SetShaderParameter("spectrum_size", (float)N);
         _oceanSurfaceMat.SetShaderParameter("height_scale", HeightScale);
         _oceanSurfaceMat.SetShaderParameter("horizontal_scale", HorizontalScale);
         _oceanSurfaceMat.SetShaderParameter("lambda_scale", ChoppyLambda);
 
-        ApplyDisplayTextures();
+        if (_tileMeshes.Count > 0)
+        {
+            for (int i = 0; i < _tileMeshes.Count; i++)
+                _tileMeshes[i].MaterialOverride = _oceanSurfaceMat;
+        }
+        else if (_oceanMesh != null)
+        {
+            _oceanMesh.MaterialOverride = _oceanSurfaceMat;
+        }
+    }
+
+    private Material CreateFallbackMaterial()
+    {
+        return new StandardMaterial3D
+        {
+            AlbedoColor = new Color(0.08f, 0.22f, 0.35f),
+            Roughness = 0.08f
+        };
     }
 
     private void RenderThreadReinit()
