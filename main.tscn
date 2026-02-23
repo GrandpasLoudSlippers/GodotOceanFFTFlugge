@@ -1,6 +1,35 @@
 [gd_scene format=3 uid="uid://buyh8fkpd1pxn"]
 
-[ext_resource type="Script" uid="uid://dffuh8qrijjv1" path="res://OceanGpuPipelineRd.cs" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://bgmrfluj7m6fh" path="res://OceanGpuAttemptRd.cs" id="1_ig7tw"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7dm0k"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_ig7tw"]
+sky_material = SubResource("ProceduralSkyMaterial_7dm0k")
+
+[sub_resource type="Environment" id="Environment_0xm2m"]
+background_mode = 2
+sky = SubResource("Sky_ig7tw")
+tonemap_mode = 2
+glow_enabled = true
 
 [node name="Main" type="Node" unique_id=53954720]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1176228523]
+environment = SubResource("Environment_0xm2m")
+
+[node name="Node3D" type="Node3D" parent="." unique_id=40352588]
 script = ExtResource("1_ig7tw")
+N = 128
+L = 500
+A = 10.0
+WindSpeed = 5.0
+OceanMeshPath = NodePath("")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1185052920]
+transform = Transform3D(0.966401, 0.25702852, 0.002349548, -0.19083364, 0.7113315, 0.67645407, 0.17219666, -0.6541742, 0.73648113, 0, 2, 0)
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=560118171]
+transform = Transform3D(1, 0, 0, 0, 0.83777595, 0.5460142, 0, -0.5460142, 0.83777595, 0, 39.343456, 32.6083)
